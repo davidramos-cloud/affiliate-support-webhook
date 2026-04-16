@@ -40,6 +40,20 @@ app.post("/webhook/affiliate-support", async (req, res) => {
     // Log full payload for debugging
     console.log(`[${receivedAt}] Full payload:`, JSON.stringify(body, null, 2));
 
+    // --- Helper: unwrap HighLevel values that come as objects ---
+    // Some HL fields arrive as {value: "...", label: "..."} instead of plain strings
+    function unwrapValue(val) {
+      if (val === undefined || val === null || val === "") return "";
+      if (typeof val === "string") return val;
+      if (typeof val === "object" && !Array.isArray(val)) {
+        return val.value || val.label || val.name || val.text || val.id || JSON.stringify(val);
+      }
+      if (Array.isArray(val)) {
+        return val.map(v => unwrapValue(v)).filter(Boolean).join(", ");
+      }
+      return String(val);
+    }
+
     // --- Helper: find a value by checking multiple keys (case-insensitive) ---
     // HighLevel sends form data using the field labels as keys, which can vary
     // in casing and formatting (spaces, slashes, underscores, etc.).
@@ -47,7 +61,7 @@ app.post("/webhook/affiliate-support", async (req, res) => {
       // 1. Try exact matches first
       for (const key of candidateKeys) {
         if (obj[key] !== undefined && obj[key] !== null && obj[key] !== "") {
-          return obj[key];
+          return unwrapValue(obj[key]);
         }
       }
       // 2. Try case-insensitive match against all keys in the payload
@@ -57,7 +71,7 @@ app.post("/webhook/affiliate-support", async (req, res) => {
         for (const candidate of lowerCandidates) {
           if (lowerObjKey === candidate) {
             if (obj[objKey] !== undefined && obj[objKey] !== null && obj[objKey] !== "") {
-              return obj[objKey];
+              return unwrapValue(obj[objKey]);
             }
           }
         }
@@ -69,7 +83,7 @@ app.post("/webhook/affiliate-support", async (req, res) => {
           const normCandidate = candidate.replace(/[^a-z0-9]/g, "");
           if (normalized.includes(normCandidate) || normCandidate.includes(normalized)) {
             if (obj[objKey] !== undefined && obj[objKey] !== null && obj[objKey] !== "") {
-              return obj[objKey];
+              return unwrapValue(obj[objKey]);
             }
           }
         }
@@ -144,7 +158,7 @@ app.post("/webhook/affiliate-support", async (req, res) => {
         "type_of_affiliate_request", "typeOfAffiliateRequest", "request_type",
         "Type of Affiliate Request", "Affiliate Support Requestion (Selected)",
         "affiliate_support_requestion_selected", "type_of_request") ||
-      body.contact?.affiliate_customer_issue ||
+      unwrapValue(body.contact?.affiliate_customer_issue) ||
       findInCustomData(customData, "affiliate_customer_issue", "typeofaffiliaterequest", "requesttype", "affiliaterequest") ||
       "";
 
