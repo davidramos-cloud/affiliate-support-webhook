@@ -99,7 +99,7 @@ app.post("/webhook/affiliate-support", async (req, res) => {
       body.cc ||
       "";
 
-    // Build the description HTML to match Zapier format
+    // Build description HTML with proper line breaks
     const contactUrl =
       locationId && contactId
         ? `https://app.gohighlevel.com/v2/location/${locationId}/contacts/detail/${contactId}`
@@ -127,16 +127,11 @@ app.post("/webhook/affiliate-support", async (req, res) => {
       subject: `[Affiliate Support Form] By ${email}`,
       email: email || "no-reply@gohighlevel.com",
       name: fullName,
-      type: "L2 - Senior",
-      priority: 1,
+      type: "L1 - Frontline",
+      priority: 3,
       description: descriptionHtml,
-      tags: ["FDZ-18: Affiliate Support Form", "Created at L2", "priority reset"],
+      tags: ["FDZ-18: Affiliate Support Form"],
       status: 2,
-      group_id: 48000365697,
-      custom_fields: {
-        cf_product_label: "HighLevel Affiliate Program",
-        cf_skill: "L2 OSF",
-      },
     };
 
     // Add CC emails if provided
