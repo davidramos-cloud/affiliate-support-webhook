@@ -9,16 +9,6 @@ const FRESHDESK_DOMAIN = "gohighlevelassist.freshdesk.com";
 const FRESHDESK_API_KEY = process.env.FRESHDESK_API_KEY;
 
 // LeadConnector webhook URL
-const axios = require("axios");
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-// Freshdesk config
-const FRESHDESK_DOMAIN = "gohighlevelassist.freshdesk.com";
-const FRESHDESK_API_KEY = process.env.FRESHDESK_API_KEY;
-
-// LeadConnector webhook URL
 const LC_WEBHOOK_URL =
   "https://services.leadconnectorhq.com/hooks/knES3eSWYIsc5YSZ3YLl/webhook-trigger/773a3c58-eb38-40ee-9708-0f58f5e0c943";
 
