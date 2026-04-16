@@ -1,0 +1,17 @@
+{
+  "name": "affiliate-support-webhook",
+  "version": "1.0.0",
+  "description": "Webhook service to replace Zapier FDZ-18: Affiliate Support Form Submissions into Freshdesk Tickets",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
