@@ -99,25 +99,26 @@ app.post("/webhook/affiliate-support", async (req, res) => {
       body.cc ||
       "";
 
-    // Build the description to match the Zapier format exactly
+    // Build the description HTML to match Zapier format
     const contactUrl =
       locationId && contactId
         ? `https://app.gohighlevel.com/v2/location/${locationId}/contacts/detail/${contactId}`
         : "N/A";
 
-    const description = [
+    const descriptionHtml = [
       `[Name]: ${fullName}`,
       `[Affiliate Email]: ${affiliateEmail}`,
       `[Affiliate Link]: ${affiliateLink}`,
-      `[Request Type]: ${requestType}`,
-      `[Other Details]: ${otherDetails}`,
-      `[Attachments]: ${attachments}`,
+      `[Affiliate Support Requestion (Selected)]: ${requestType}`,
+      `[Other Details Provided]: ${otherDetails}`,
+      `[Attachments? (If provided)]: ${attachments}`,
+      ``,
       ``,
       `-----Contact in HL Account from Form Submission-----`,
       `[Location ID]: ${locationId}`,
       `[Contact ID]: ${contactId}`,
-      `Contact URL: ${contactUrl}`,
-    ].join("\n");
+      `Contact URL: <a href="${contactUrl}">${contactUrl}</a>`,
+    ].join("<br>");
 
     console.log(`Creating Freshdesk ticket for: ${email}`);
 
@@ -126,11 +127,16 @@ app.post("/webhook/affiliate-support", async (req, res) => {
       subject: `[Affiliate Support Form] By ${email}`,
       email: email || "no-reply@gohighlevel.com",
       name: fullName,
-      type: "L1 - Frontline",
-      priority: 3,
-      description: description,
-      tags: ["FDZ-18: Affiliate Support Form"],
+      type: "L2 - Senior",
+      priority: 1,
+      description: descriptionHtml,
+      tags: ["FDZ-18: Affiliate Support Form", "Created at L2", "priority reset"],
       status: 2,
+      group_id: 48000365697,
+      custom_fields: {
+        cf_product_label: "HighLevel Affiliate Program",
+        cf_skill: "L2 OSF",
+      },
     };
 
     // Add CC emails if provided
