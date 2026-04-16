@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: affiliate-support-webhook
+    runtime: node
+    region: ohio
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: FRESHDESK_API_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production
