@@ -9,6 +9,16 @@ const FRESHDESK_DOMAIN = "gohighlevelassist.freshdesk.com";
 const FRESHDESK_API_KEY = process.env.FRESHDESK_API_KEY;
 
 // LeadConnector webhook URL
+const axios = require("axios");
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Freshdesk config
+const FRESHDESK_DOMAIN = "gohighlevelassist.freshdesk.com";
+const FRESHDESK_API_KEY = process.env.FRESHDESK_API_KEY;
+
+// LeadConnector webhook URL
 const LC_WEBHOOK_URL =
   "https://services.leadconnectorhq.com/hooks/knES3eSWYIsc5YSZ3YLl/webhook-trigger/773a3c58-eb38-40ee-9708-0f58f5e0c943";
 
@@ -37,69 +47,153 @@ app.post("/webhook/affiliate-support", async (req, res) => {
   try {
     const body = req.body;
 
-    // Extract form fields
+    // Log full payload for debugging
+    console.log(`[${receivedAt}] Full payload:`, JSON.stringify(body, null, 2));
+
+    // --- Helper: find a value by checking multiple keys (case-insensitive) ---
+    // HighLevel sends form data using the field labels as keys, which can vary
+    // in casing and formatting (spaces, slashes, underscores, etc.).
+    function findField(obj, ...candidateKeys) {
+      // 1. Try exact matches first
+      for (const key of candidateKeys) {
+        if (obj[key] !== undefined && obj[key] !== null && obj[key] !== "") {
+          return obj[key];
+        }
+      }
+      // 2. Try case-insensitive match against all keys in the payload
+      const lowerCandidates = candidateKeys.map((k) => k.toLowerCase());
+      for (const objKey of Object.keys(obj)) {
+        const lowerObjKey = objKey.toLowerCase();
+        for (const candidate of lowerCandidates) {
+          if (lowerObjKey === candidate) {
+            if (obj[objKey] !== undefined && obj[objKey] !== null && obj[objKey] !== "") {
+              return obj[objKey];
+            }
+          }
+        }
+      }
+      // 3. Try partial/fuzzy match -- check if any payload key contains a candidate
+      for (const objKey of Object.keys(obj)) {
+        const normalized = objKey.toLowerCase().replace(/[^a-z0-9]/g, "");
+        for (const candidate of lowerCandidates) {
+          const normCandidate = candidate.replace(/[^a-z0-9]/g, "");
+          if (normalized.includes(normCandidate) || normCandidate.includes(normalized)) {
+            if (obj[objKey] !== undefined && obj[objKey] !== null && obj[objKey] !== "") {
+              return obj[objKey];
+            }
+          }
+        }
+      }
+      return "";
+    }
+
+    // --- Helper: extract from customData array (HighLevel sometimes nests here) ---
+    function findInCustomData(customData, ...candidateKeys) {
+      if (!Array.isArray(customData)) return "";
+      const lowerCandidates = candidateKeys.map((k) => k.toLowerCase().replace(/[^a-z0-9]/g, ""));
+      for (const item of customData) {
+        const label = (item.label || item.field_key || item.key || item.name || item.id || "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "");
+        for (const candidate of lowerCandidates) {
+          if (label.includes(candidate) || candidate.includes(label)) {
+            if (item.value !== undefined && item.value !== null && item.value !== "") {
+              return item.value;
+            }
+          }
+        }
+      }
+      return "";
+    }
+
+    const customData = body.customData || body.custom_data || body.others || [];
+
+    // Extract form fields -- checking body keys, nested contact, and customData
+    const firstName =
+      findField(body, "first_name", "firstName", "First Name") ||
+      body.contact?.first_name ||
+      body.contact?.firstName ||
+      findInCustomData(customData, "first_name", "firstname") ||
+      "";
+
+    const lastName =
+      findField(body, "last_name", "lastName", "Last Name") ||
+      body.contact?.last_name ||
+      body.contact?.lastName ||
+      findInCustomData(customData, "last_name", "lastname") ||
+      "";
+
     const fullName =
-      body.full_name ||
-      body.fullName ||
-      body.name ||
+      findField(body, "full_name", "fullName", "name") ||
       body.contact?.name ||
-      body.first_name
-        ? `${body.first_name || ""} ${body.last_name || ""}`.trim()
-        : "Unknown";
+      body.contact?.full_name ||
+      (firstName || lastName ? `${firstName} ${lastName}`.trim() : "") ||
+      "Unknown";
 
     const email =
-      body.email ||
-      body.affiliate_email ||
+      findField(body, "email", "Email") ||
       body.contact?.email ||
+      findInCustomData(customData, "email") ||
       "";
 
     const affiliateEmail =
-      body.affiliate_email ||
-      body.email ||
+      findField(body, "affiliate_email", "affiliateEmail", "Affiliate Email") ||
+      findInCustomData(customData, "affiliateemail", "affiliate_email") ||
+      email ||
       "";
 
     const affiliateLink =
-      body.affiliate_link ||
-      body.affiliateLink ||
+      findField(body, "affiliate_link", "affiliateLink", "Your Affiliate Link", "your_affiliate_link", "Affiliate Link") ||
+      findInCustomData(customData, "affiliatelink", "affiliate_link", "youraffiliatelink") ||
       "";
 
     const requestType =
-      body.type_of_affiliate_request ||
-      body.typeOfAffiliateRequest ||
-      body.request_type ||
+      findField(body, "type_of_affiliate_request", "typeOfAffiliateRequest", "request_type",
+        "Type of Affiliate Request", "Affiliate Support Requestion (Selected)",
+        "affiliate_support_requestion_selected", "type_of_request") ||
+      findInCustomData(customData, "typeofaffiliaterequest", "requesttype", "affiliaterequest") ||
       "";
 
     const otherDetails =
-      body.other_details ||
-      body.otherDetails ||
-      body.details ||
-      body.message ||
+      findField(body, "other_details", "otherDetails", "details", "message",
+        "Other/ Additional Details", "Other/Additional Details", "other_additional_details",
+        "Additional Details", "additional_details") ||
+      findInCustomData(customData, "otherdetails", "other_details", "additionaldetails", "otheradditionaldetails") ||
       "";
 
     const attachments =
-      body.attachments ||
-      body.attachment ||
+      findField(body, "attachments", "attachment", "Attachments? (If provided)", "Attachments") ||
+      findInCustomData(customData, "attachments", "attachment") ||
       "";
 
     const locationId =
-      body.location_id ||
-      body.locationId ||
+      findField(body, "location_id", "locationId", "location.id") ||
       body.location?.id ||
       "";
 
     const contactId =
-      body.contact_id ||
-      body.contactId ||
+      findField(body, "contact_id", "contactId", "contact.id") ||
       body.contact?.id ||
       "";
 
     const ccEmail =
-      body.cc_email ||
-      body.ccEmail ||
-      body.cc ||
+      findField(body, "cc_email", "ccEmail", "cc", "Add a C C Email to Your",
+        "add_a_cc_email", "cc_emails", "Add a CC Email") ||
+      findInCustomData(customData, "ccemail", "cc_email", "addaccemail") ||
       "";
 
-    // Build description HTML with proper line breaks
+    const timezone =
+      findField(body, "timezone", "Timezone", "time_zone", "timeZone") ||
+      body.contact?.timezone ||
+      findInCustomData(customData, "timezone") ||
+      "";
+
+    console.log(`[${receivedAt}] Extracted fields:`, JSON.stringify({
+      fullName, email, affiliateEmail, affiliateLink,
+      requestType, otherDetails, ccEmail, locationId, contactId, timezone
+    }, null, 2));
+
+    // Build the description HTML to match Zapier format with proper line breaks
     const contactUrl =
       locationId && contactId
         ? `https://app.gohighlevel.com/v2/location/${locationId}/contacts/detail/${contactId}`
