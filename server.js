@@ -62,7 +62,7 @@ app.post("/webhook/affiliate-support", async (req, res) => {
           }
         }
       }
-      // 3. Try partial/fuzzy match -- check if any payload key contains a candidate
+      // 3. Try partial/fuzzy match — check if any payload key contains a candidate
       for (const objKey of Object.keys(obj)) {
         const normalized = objKey.toLowerCase().replace(/[^a-z0-9]/g, "");
         for (const candidate of lowerCandidates) {
@@ -98,7 +98,7 @@ app.post("/webhook/affiliate-support", async (req, res) => {
 
     const customData = body.customData || body.custom_data || body.others || [];
 
-    // Extract form fields -- checking body keys, nested contact, and customData
+    // Extract form fields — checking body keys, nested contact, and customData
     const firstName =
       findField(body, "first_name", "firstName", "First Name") ||
       body.contact?.first_name ||
@@ -133,32 +133,42 @@ app.post("/webhook/affiliate-support", async (req, res) => {
       "";
 
     const affiliateLink =
-      findField(body, "affiliate_link", "affiliateLink", "Your Affiliate Link", "your_affiliate_link", "Affiliate Link") ||
-      findInCustomData(customData, "affiliatelink", "affiliate_link", "youraffiliatelink") ||
+      findField(body, "contact.your_affiliate_link", "affiliate_link", "affiliateLink",
+        "Your Affiliate Link", "your_affiliate_link", "Affiliate Link") ||
+      body.contact?.your_affiliate_link ||
+      findInCustomData(customData, "your_affiliate_link", "affiliatelink", "affiliate_link", "youraffiliatelink") ||
       "";
 
     const requestType =
-      findField(body, "type_of_affiliate_request", "typeOfAffiliateRequest", "request_type",
+      findField(body, "contact.affiliate_customer_issue", "affiliate_customer_issue",
+        "type_of_affiliate_request", "typeOfAffiliateRequest", "request_type",
         "Type of Affiliate Request", "Affiliate Support Requestion (Selected)",
         "affiliate_support_requestion_selected", "type_of_request") ||
-      findInCustomData(customData, "typeofaffiliaterequest", "requesttype", "affiliaterequest") ||
+      body.contact?.affiliate_customer_issue ||
+      findInCustomData(customData, "affiliate_customer_issue", "typeofaffiliaterequest", "requesttype", "affiliaterequest") ||
       "";
 
     const otherDetails =
-      findField(body, "other_details", "otherDetails", "details", "message",
+      findField(body, "contact.other_affiliate_request", "other_affiliate_request",
+        "other_details", "otherDetails", "details", "message",
         "Other/ Additional Details", "Other/Additional Details", "other_additional_details",
         "Additional Details", "additional_details") ||
-      findInCustomData(customData, "otherdetails", "other_details", "additionaldetails", "otheradditionaldetails") ||
+      body.contact?.other_affiliate_request ||
+      findInCustomData(customData, "other_affiliate_request", "otherdetails", "other_details", "additionaldetails", "otheradditionaldetails") ||
       "";
 
     const attachments =
-      findField(body, "attachments", "attachment", "Attachments? (If provided)", "Attachments") ||
-      findInCustomData(customData, "attachments", "attachment") ||
+      findField(body, "contact.add_a_file_upload_to_fully_explain_the_request_optional_and_highly_recommended",
+        "add_a_file_upload_to_fully_explain_the_request_optional_and_highly_recommended",
+        "attachments", "attachment", "Attachments? (If provided)", "Attachments") ||
+      body.contact?.add_a_file_upload_to_fully_explain_the_request_optional_and_highly_recommended ||
+      findInCustomData(customData, "add_a_file_upload_to_fully_explain_the_request_optional_and_highly_recommended", "attachments", "attachment") ||
       "";
 
     const locationId =
-      findField(body, "location_id", "locationId", "location.id") ||
       body.location?.id ||
+      findField(body, "location_id", "locationId") ||
+      findInCustomData(customData, "location_id", "locationid") ||
       "";
 
     const contactId =
@@ -167,9 +177,12 @@ app.post("/webhook/affiliate-support", async (req, res) => {
       "";
 
     const ccEmail =
-      findField(body, "cc_email", "ccEmail", "cc", "Add a C C Email to Your",
+      findField(body, "contact.add_a_cc_email_to_your_support_ticket_optional",
+        "add_a_cc_email_to_your_support_ticket_optional",
+        "cc_email", "ccEmail", "cc", "Add a C C Email to Your",
         "add_a_cc_email", "cc_emails", "Add a CC Email") ||
-      findInCustomData(customData, "ccemail", "cc_email", "addaccemail") ||
+      body.contact?.add_a_cc_email_to_your_support_ticket_optional ||
+      findInCustomData(customData, "add_a_cc_email_to_your_support_ticket_optional", "ccemail", "cc_email", "addaccemail") ||
       "";
 
     const timezone =
