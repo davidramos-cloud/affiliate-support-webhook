@@ -45,13 +45,20 @@ app.post("/webhook/affiliate-support", async (req, res) => {
     function unwrapValue(val) {
       if (val === undefined || val === null || val === "") return "";
       if (typeof val === "string") return val;
-      if (typeof val === "object" && !Array.isArray(val)) {
-        return val.value || val.label || val.name || val.text || val.id || JSON.stringify(val);
-      }
+      if (typeof val === "number" || typeof val === "boolean") return String(val);
       if (Array.isArray(val)) {
         return val.map(v => unwrapValue(v)).filter(Boolean).join(", ");
       }
-      return String(val);
+      if (typeof val === "object") {
+        // Only unwrap simple value objects — skip complex/nested ones
+        if (typeof val.value === "string") return val.value;
+        if (typeof val.label === "string") return val.label;
+        if (typeof val.name === "string" && !val.sessionSource) return val.name;
+        if (typeof val.text === "string") return val.text;
+        // If it's a complex nested object (like attributionSource), skip it
+        return "";
+      }
+      return "";
     }
 
     // --- Helper: find a value by checking multiple keys (case-insensitive) ---
@@ -154,12 +161,12 @@ app.post("/webhook/affiliate-support", async (req, res) => {
       "";
 
     const requestType =
-      findField(body, "contact.affiliate_customer_issue", "affiliate_customer_issue",
-        "type_of_affiliate_request", "typeOfAffiliateRequest", "request_type",
-        "Type of Affiliate Request", "Affiliate Support Requestion (Selected)",
-        "affiliate_support_requestion_selected", "type_of_request") ||
       unwrapValue(body.contact?.affiliate_customer_issue) ||
-      findInCustomData(customData, "affiliate_customer_issue", "typeofaffiliaterequest", "requesttype", "affiliaterequest") ||
+      unwrapValue(body["contact.affiliate_customer_issue"]) ||
+      unwrapValue(body.affiliate_customer_issue) ||
+      findField(body, "type_of_affiliate_request", "request_type",
+        "Type of Affiliate Request", "Affiliate Support Requestion (Selected)") ||
+      findInCustomData(customData, "affiliate_customer_issue", "typeofaffiliaterequest", "requesttype") ||
       "";
 
     const otherDetails =
